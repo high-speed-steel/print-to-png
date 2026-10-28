@@ -4,7 +4,7 @@
 .DESCRIPTION
     1. 為「Print to PNG」建立專屬的背景暫存連接埠 (%LOCALAPPDATA%\Temp\print_to_png_spool.pdf)，
        不與原本的 Microsoft Print to PDF 共用 PORTPROMPT:，讓兩台印表機在 Windows 11 設定中各自獨立顯示。
-    2. 支援 -DefaultDPI <int> 直接設定預設輸出 DPI（例如 150, 300, 600, 1200）。
+    2. 支援 -DefaultDPI <int> 直接設定預設輸出 DPI（例如 150, 300, 600, 1200, 2400, 4800）。
     3. 支援 -RegisterStartup 自動將 pdf_to_png_daemon.pyw 註冊至 Windows「啟動 (shell:startup)」。
 #>
 

@@ -12,7 +12,7 @@ Core Workflow:
 3. As soon as the spool file is written, invokes the native Windows File Explorer
    Save As dialog (`comdlg32.GetSaveFileNameW`):
    - File name: Pre-filled with `<OriginalDocumentName>.png`.
-   - Save as type: Native dropdown supporting `300 DPI`, `150 DPI`, `600 DPI`, and `1200 DPI`.
+   - Save as type: Native dropdown supporting `150 DPI` through `4800 DPI`.
 4. Renders the document directly to the target path as high-quality PNG(s) using `pypdfium2`
    (single page: `<name>.png`, multi-page: `<name>_p1.png`, `<name>_p2.png`), leaving no PDF behind.
 """
@@ -53,6 +53,7 @@ DEFAULT_CONFIG = {
     "default_dpi": 300,
     "last_save_dir": "",
 }
+SUPPORTED_DPI_OPTIONS = (150, 300, 600, 1200, 2400, 4800)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -368,7 +369,7 @@ def prompt_native_png_save_dialog(
 
     hwnd_owner = user32.GetForegroundWindow()
 
-    dpi_options = [default_dpi] + [d for d in (150, 300, 600, 1200) if d != default_dpi]
+    dpi_options = [default_dpi] + [d for d in SUPPORTED_DPI_OPTIONS if d != default_dpi]
     filter_parts: List[str] = []
     for dpi in dpi_options:
         filter_parts.append(f"PNG 圖片 - {dpi} DPI (*.png)\0*.png")

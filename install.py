@@ -107,7 +107,7 @@ def main() -> None:
             0,
             f"「{PRINTER_NAME}」已成功安裝並啟動！\n\n"
             f"• 安裝路徑：{INSTALL_DIR}\n"
-            f"• 預設解析度：300 DPI（可於另存新檔下拉選單或 config.json 調整）\n"
+            f"• 預設解析度：300 DPI（可於另存新檔下拉選單選擇 150–4800 DPI，或調整 config.json）\n"
             f"• 開機自動啟動：已啟用\n\n"
             f"現在您可以在任何軟體按 Ctrl+P 選擇「{PRINTER_NAME}」直接另存 PNG 圖片！",
             "Print to PNG 安裝完成",
