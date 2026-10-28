@@ -4,11 +4,12 @@
 
 ## Features
 
-- 使用 Windows 原生列印與檔案儲存對話框
+- 使用 Windows 風格輸出設定視窗
 - 自動帶入原始文件名稱
-- 支援 150、300、600、1200、2400 與 4800 DPI
+- 支援輸入 72–4800 DPI，預設 1200 DPI
 - 支援單頁與多頁文件輸出
 - 多頁文件自動命名為 `<name>_p1.png`、`<name>_p2.png`
+- 可選擇建立同名資料夾與 ZIP 壓縮檔
 - 不產生或保留中間 PDF 檔案
 - 與既有的 Microsoft Print to PDF 並存
 
@@ -28,7 +29,7 @@
 
 ```powershell
 pip install -r requirements.txt
-powershell -ExecutionPolicy Bypass -File .\install_printer.ps1 -DefaultDPI 300 -RegisterStartup
+powershell -ExecutionPolicy Bypass -File .\install_printer.ps1 -DefaultDPI 1200 -RegisterStartup
 Start-Process pythonw.exe -ArgumentList ".\pdf_to_png_daemon.pyw" -WindowStyle Hidden
 ```
 
@@ -38,12 +39,12 @@ Start-Process pythonw.exe -ArgumentList ".\pdf_to_png_daemon.pyw" -WindowStyle H
 
 ```json
 {
-    "default_dpi": 600,
+    "default_dpi": 1200,
     "last_save_dir": ""
 }
 ```
 
-列印時也可以在檔案儲存對話框中選擇 DPI。
+列印時可在輸出設定視窗輸入 DPI，並選擇是否建立同名資料夾與 ZIP。
 
 高 DPI 會產生較大的影像。若輸出失敗，請查看 `%LOCALAPPDATA%\PrintToPNG\print_to_png.log`；
 日誌會記錄每頁的渲染進度與錯誤原因。
@@ -63,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File .\uninstall_printer.ps1
 | `pdf_to_png_daemon.pyw` | Background daemon and PDF-to-PNG renderer |
 | `print_to_png_config.py` | Configuration and save-directory management |
 | `print_to_png_filename.py` | Document-title and filename normalization |
-| `print_to_png_dialog.py` | Native Windows PNG save dialog |
+| `print_to_png_dialog.py` | Windows-style output settings dialog |
 | `print_to_png_renderer.py` | Spool-file claiming and PDF rendering |
 | `install_printer.ps1` | Virtual printer and startup configuration |
 | `uninstall_printer.ps1` | Complete uninstallation script |

@@ -1,59 +1,109 @@
-import ctypes
-from ctypes import wintypes
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
-
-from print_to_png_config import SUPPORTED_DPI_OPTIONS
+from typing import Optional
 
 
-class OPENFILENAMEW(ctypes.Structure):
-    _fields_ = [
-        ("lStructSize", wintypes.DWORD), ("hwndOwner", wintypes.HWND),
-        ("hInstance", wintypes.HINSTANCE), ("lpstrFilter", wintypes.LPCWSTR),
-        ("lpstrCustomFilter", wintypes.LPWSTR), ("nMaxCustFilter", wintypes.DWORD),
-        ("nFilterIndex", wintypes.DWORD), ("lpstrFile", wintypes.LPWSTR),
-        ("nMaxFile", wintypes.DWORD), ("lpstrFileTitle", wintypes.LPWSTR),
-        ("nMaxFileTitle", wintypes.DWORD), ("lpstrInitialDir", wintypes.LPCWSTR),
-        ("lpstrTitle", wintypes.LPCWSTR), ("Flags", wintypes.DWORD),
-        ("nFileOffset", wintypes.WORD), ("nFileExtension", wintypes.WORD),
-        ("lpstrDefExt", wintypes.LPCWSTR), ("lCustData", wintypes.LPARAM),
-        ("lpfnHook", ctypes.c_void_p), ("lpTemplateName", wintypes.LPCWSTR),
-        ("pvReserved", ctypes.c_void_p), ("dwReserved", wintypes.DWORD),
-        ("FlagsEx", wintypes.DWORD),
-    ]
+@dataclass(frozen=True)
+class SaveOptions:
+    target_path: Path
+    dpi: int
+    create_folder: bool
+    create_zip: bool
 
 
-OFN_OVERWRITEPROMPT = 0x00000002
-OFN_NOCHANGEDIR = 0x00000008
-OFN_PATHMUSTEXIST = 0x00000800
-OFN_EXPLORER = 0x00080000
+def prompt_png_save_dialog(
+    default_filename: str,
+    initial_dir: str,
+    default_dpi: int,
+    page_count: int,
+) -> Optional[SaveOptions]:
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, ttk
 
+    result: list[SaveOptions] = []
+    root = tk.Tk()
+    root.title("Print to PNG - 輸出設定")
+    root.resizable(False, False)
+    root.attributes("-topmost", True)
 
-def prompt_native_png_save_dialog(
-    default_filename: str, initial_dir: str, default_dpi: int
-) -> Tuple[Optional[Path], int]:
-    comdlg32 = ctypes.windll.comdlg32
-    user32 = ctypes.windll.user32
-    dpi_options = [default_dpi] + [dpi for dpi in SUPPORTED_DPI_OPTIONS if dpi != default_dpi]
-    filter_parts: List[str] = [
-        f"PNG 圖片 - {dpi} DPI (*.png)\0*.png" for dpi in dpi_options
-    ]
-    file_buf = ctypes.create_unicode_buffer(f"{default_filename}.png", 4096)
-    ofn = OPENFILENAMEW()
-    ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
-    ofn.hwndOwner = user32.GetForegroundWindow()
-    ofn.lpstrFilter = "\0".join(filter_parts) + "\0\0"
-    ofn.nFilterIndex = 1
-    ofn.lpstrFile = ctypes.cast(file_buf, wintypes.LPWSTR)
-    ofn.nMaxFile = 4096
-    ofn.lpstrInitialDir = initial_dir
-    ofn.lpstrTitle = "Print to PNG - 另存 PNG 圖片"
-    ofn.lpstrDefExt = "png"
-    ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR
-    comdlg32.GetSaveFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
-    comdlg32.GetSaveFileNameW.restype = wintypes.BOOL
+    filename_var = tk.StringVar(value=f"{default_filename}.png")
+    folder_var = tk.StringVar(value=initial_dir)
+    dpi_var = tk.StringVar(value=str(default_dpi))
+    create_folder_var = tk.BooleanVar(value=page_count > 1)
+    create_zip_var = tk.BooleanVar(value=False)
 
-    if comdlg32.GetSaveFileNameW(ctypes.byref(ofn)):
-        index = max(0, min(ofn.nFilterIndex - 1, len(dpi_options) - 1))
-        return Path(file_buf.value), dpi_options[index]
-    return None, default_dpi
+    frame = ttk.Frame(root, padding=16)
+    frame.grid()
+    frame.columnconfigure(1, weight=1)
+
+    ttk.Label(frame, text="檔案名稱:").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
+    ttk.Entry(frame, textvariable=filename_var, width=48).grid(
+        row=0, column=1, columnspan=2, sticky="ew", pady=4
+    )
+    ttk.Label(frame, text="輸出資料夾:").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
+    ttk.Entry(frame, textvariable=folder_var, width=48).grid(
+        row=1, column=1, sticky="ew", pady=4
+    )
+
+    def browse_folder() -> None:
+        selected = filedialog.askdirectory(
+            parent=root, initialdir=folder_var.get(), title="選擇 PNG 輸出資料夾"
+        )
+        if selected:
+            folder_var.set(selected)
+
+    ttk.Button(frame, text="瀏覽...", command=browse_folder).grid(
+        row=1, column=2, padx=(8, 0), pady=4
+    )
+    ttk.Label(frame, text="DPI:").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+    ttk.Entry(frame, textvariable=dpi_var, width=12).grid(row=2, column=1, sticky="w", pady=4)
+    ttk.Label(frame, text="允許範圍：72–4800").grid(row=2, column=1, sticky="w", padx=(110, 0))
+
+    ttk.Checkbutton(
+        frame, text="建立同名資料夾", variable=create_folder_var
+    ).grid(row=3, column=0, columnspan=3, sticky="w", pady=(12, 2))
+    ttk.Checkbutton(
+        frame, text="同時建立 ZIP", variable=create_zip_var
+    ).grid(row=4, column=0, columnspan=3, sticky="w", pady=2)
+    ttk.Label(
+        frame,
+        text=f"本次列印共 {page_count} 頁；PNG 將依頁數自動命名。",
+    ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(10, 4))
+
+    button_frame = ttk.Frame(frame)
+    button_frame.grid(row=6, column=0, columnspan=3, sticky="e", pady=(12, 0))
+
+    def save() -> None:
+        filename = filename_var.get().strip()
+        if not filename:
+            messagebox.showerror("輸入錯誤", "請輸入檔案名稱。", parent=root)
+            return
+        if not filename.lower().endswith(".png"):
+            filename += ".png"
+        try:
+            dpi = int(dpi_var.get().strip())
+        except ValueError:
+            messagebox.showerror("輸入錯誤", "DPI 必須是整數。", parent=root)
+            return
+        if not 72 <= dpi <= 4800:
+            messagebox.showerror("輸入錯誤", "DPI 必須介於 72 到 4800。", parent=root)
+            return
+        folder = Path(folder_var.get().strip()).expanduser()
+        if not folder.exists() or not folder.is_dir():
+            messagebox.showerror("輸入錯誤", "輸出資料夾不存在。", parent=root)
+            return
+        result.append(
+            SaveOptions(
+                target_path=folder / filename,
+                dpi=dpi,
+                create_folder=create_folder_var.get(),
+                create_zip=create_zip_var.get(),
+            )
+        )
+        root.destroy()
+
+    ttk.Button(button_frame, text="儲存", command=save).grid(row=0, column=0, padx=4)
+    ttk.Button(button_frame, text="取消", command=root.destroy).grid(row=0, column=1, padx=4)
+    root.protocol("WM_DELETE_WINDOW", root.destroy)
+    root.mainloop()
+    return result[0] if result else None

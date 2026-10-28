@@ -6,7 +6,7 @@ from typing import Dict
 
 
 DEFAULT_CONFIG = {
-    "default_dpi": 300,
+    "default_dpi": 1200,
     "last_save_dir": "",
 }
 SUPPORTED_DPI_OPTIONS = (150, 300, 600, 1200, 2400, 4800)

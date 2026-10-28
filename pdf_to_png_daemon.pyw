@@ -35,9 +35,10 @@ from watchdog.observers import Observer
 from print_to_png_config import get_default_save_dir as config_get_default_save_dir
 from print_to_png_config import load_config as config_load
 from print_to_png_config import save_config as config_save
-from print_to_png_dialog import prompt_native_png_save_dialog as native_save_dialog
+from print_to_png_dialog import prompt_png_save_dialog
 from print_to_png_filename import sanitize_filename
 from print_to_png_renderer import claim_spool_pdf as renderer_claim_spool_pdf
+from print_to_png_renderer import get_pdf_page_count
 from print_to_png_renderer import render_pdf_to_target_png as renderer_render_pdf_to_target_png
 
 # ==============================================================================
@@ -481,28 +482,38 @@ class SpoolPortHandler(FileSystemEventHandler):
 
             doc_name = self.title_tracker.get_best_document_name()
             cfg = config_load(CONFIG_FILE, logger)
-            default_dpi = int(cfg.get("default_dpi", 300))
+            default_dpi = int(cfg.get("default_dpi", 1200))
             initial_dir = config_get_default_save_dir(cfg)
+            page_count = get_pdf_page_count(job_pdf)
 
             logger.info(
-                f"已攔截列印工作！正在彈出原生 PNG 另存新檔對話框 (預設檔名='{doc_name}.png', 預設 DPI={default_dpi})"
+                f"已攔截列印工作！正在彈出 PNG 輸出設定視窗 "
+                f"(預設檔名='{doc_name}.png', 頁數={page_count}, 預設 DPI={default_dpi})"
             )
 
-            chosen_path, chosen_dpi = native_save_dialog(
+            save_options = prompt_png_save_dialog(
                 default_filename=doc_name,
                 initial_dir=initial_dir,
                 default_dpi=default_dpi,
+                page_count=page_count,
             )
 
-            if chosen_path is None:
+            if save_options is None:
                 logger.info("使用者取消了另存新檔對話框，已丟棄本次列印暫存。")
                 return
 
-            cfg["last_save_dir"] = str(chosen_path.parent.resolve())
+            cfg["last_save_dir"] = str(save_options.target_path.parent.resolve())
             config_save(CONFIG_FILE, cfg, logger)
 
-            outputs = renderer_render_pdf_to_target_png(job_pdf, chosen_path, chosen_dpi, logger)
-            logger.info(f"直存 PNG 成功 ({chosen_dpi} DPI)：{[str(o) for o in outputs]}")
+            outputs = renderer_render_pdf_to_target_png(
+                job_pdf,
+                save_options.target_path,
+                save_options.dpi,
+                save_options.create_folder,
+                save_options.create_zip,
+                logger,
+            )
+            logger.info(f"直存 PNG 成功 ({save_options.dpi} DPI)：{[str(o) for o in outputs]}")
 
         except Exception as exc:
             logger.error(f"處理列印轉 PNG 作業時發生錯誤：{exc}", exc_info=True)
@@ -532,7 +543,7 @@ def main() -> None:
     cfg = config_load(CONFIG_FILE, logger)
     logger.info("======================================================")
     logger.info(
-        f"Print to PNG 原生直存服務已啟動 | 預設解析度：{cfg.get('default_dpi', 300)} DPI"
+        f"Print to PNG 直存服務已啟動 | 預設解析度：{cfg.get('default_dpi', 1200)} DPI"
     )
     logger.info(f"專屬暫存連接埠：{SPOOL_FILE_PATH}")
     logger.info(f"設定檔路徑：{CONFIG_FILE}")
