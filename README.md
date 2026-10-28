@@ -45,6 +45,9 @@ Start-Process pythonw.exe -ArgumentList ".\pdf_to_png_daemon.pyw" -WindowStyle H
 
 列印時也可以在檔案儲存對話框中選擇 DPI。
 
+高 DPI 會產生較大的影像。若輸出失敗，請查看 `%LOCALAPPDATA%\PrintToPNG\print_to_png.log`；
+日誌會記錄每頁的渲染進度與錯誤原因。
+
 ## Uninstallation
 
 ```powershell

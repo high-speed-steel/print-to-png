@@ -54,6 +54,7 @@ DEFAULT_CONFIG = {
     "last_save_dir": "",
 }
 SUPPORTED_DPI_OPTIONS = (150, 300, 600, 1200, 2400, 4800)
+MAX_PDFIUM_BITMAP_DIMENSION = 32767
 
 logging.basicConfig(
     level=logging.INFO,
@@ -460,17 +461,34 @@ def render_pdf_to_target_png(job_pdf: Path, target_png: Path, dpi: int) -> List[
 
     for page_index in range(num_pages):
         page = pdf_doc[page_index]
-        bitmap = page.render(scale=scale, rotation=0)
-        pil_image = bitmap.to_pil()
+        try:
+            width_pt, height_pt = page.get_size()
+            width_px = round(width_pt * scale)
+            height_px = round(height_pt * scale)
+            if max(width_px, height_px) > MAX_PDFIUM_BITMAP_DIMENSION:
+                raise ValueError(
+                    f"{dpi} DPI 會產生 {width_px:,} x {height_px:,} 像素，"
+                    f"超過 PDFium 單一位圖上限 {MAX_PDFIUM_BITMAP_DIMENSION:,} 像素；"
+                    "請選擇較低 DPI 或較小的頁面尺寸。"
+                )
 
-        if num_pages == 1:
-            out_path = parent_dir / f"{stem}.png"
-        else:
-            out_path = parent_dir / f"{stem}_p{page_index + 1}.png"
+            logger.info(
+                f"正在渲染第 {page_index + 1}/{num_pages} 頁 "
+                f"({width_px:,} x {height_px:,} 像素, {dpi} DPI)"
+            )
+            bitmap = page.render(scale=scale, rotation=0)
+            pil_image = bitmap.to_pil()
 
-        pil_image.save(str(out_path), format="PNG", dpi=(dpi, dpi))
-        output_files.append(out_path)
-        page.close()
+            if num_pages == 1:
+                out_path = parent_dir / f"{stem}.png"
+            else:
+                out_path = parent_dir / f"{stem}_p{page_index + 1}.png"
+
+            pil_image.save(str(out_path), format="PNG", dpi=(dpi, dpi))
+            output_files.append(out_path)
+            logger.info(f"第 {page_index + 1}/{num_pages} 頁已完成：{out_path}")
+        finally:
+            page.close()
 
     pdf_doc.close()
     return output_files
