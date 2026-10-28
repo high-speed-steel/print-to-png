@@ -79,7 +79,7 @@ def render_pdf_to_target_png(
                 out_path = (
                     target_png.parent / f"{stem}.png"
                     if num_pages == 1
-                    else target_png.parent / f"{stem}_p{page_index + 1}.png"
+                    else target_png.parent / f"{stem}-p{page_index + 1}.png"
                 )
                 image.save(str(out_path), format="PNG", dpi=(dpi, dpi))
                 output_files.append(out_path)
