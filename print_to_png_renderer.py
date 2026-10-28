@@ -2,7 +2,6 @@ import logging
 import shutil
 import time
 import uuid
-import zipfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -10,14 +9,6 @@ import pypdfium2 as pdfium
 
 
 MAX_PDFIUM_BITMAP_DIMENSION = 32767
-
-
-def get_pdf_page_count(job_pdf: Path) -> int:
-    pdf_doc = pdfium.PdfDocument(str(job_pdf))
-    try:
-        return len(pdf_doc)
-    finally:
-        pdf_doc.close()
 
 
 def claim_spool_pdf(spool_path: Path) -> Optional[Path]:
@@ -58,17 +49,11 @@ def claim_spool_pdf(spool_path: Path) -> Optional[Path]:
 
 
 def render_pdf_to_target_png(
-    job_pdf: Path,
-    target_png: Path,
-    dpi: int,
-    create_folder: bool,
-    create_zip: bool,
-    logger: logging.Logger,
+    job_pdf: Path, target_png: Path, dpi: int, logger: logging.Logger
 ) -> List[Path]:
     scale = dpi / 72.0
     stem = target_png.stem
-    output_dir = target_png.parent / stem if create_folder else target_png.parent
-    output_dir.mkdir(parents=True, exist_ok=True)
+    target_png.parent.mkdir(parents=True, exist_ok=True)
     output_files: List[Path] = []
     pdf_doc = pdfium.PdfDocument(str(job_pdf))
     num_pages = len(pdf_doc)
@@ -92,9 +77,9 @@ def render_pdf_to_target_png(
                 )
                 image = page.render(scale=scale, rotation=0).to_pil()
                 out_path = (
-                    output_dir / f"{stem}.png"
+                    target_png.parent / f"{stem}.png"
                     if num_pages == 1
-                    else output_dir / f"{stem}_p{page_index + 1}.png"
+                    else target_png.parent / f"{stem}_p{page_index + 1}.png"
                 )
                 image.save(str(out_path), format="PNG", dpi=(dpi, dpi))
                 output_files.append(out_path)
@@ -103,10 +88,4 @@ def render_pdf_to_target_png(
                 page.close()
     finally:
         pdf_doc.close()
-    if create_zip:
-        zip_path = target_png.parent / f"{stem}.zip"
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for output_file in output_files:
-                archive.write(output_file, output_file.name)
-        logger.info(f"ZIP 建立完成：{zip_path}")
     return output_files

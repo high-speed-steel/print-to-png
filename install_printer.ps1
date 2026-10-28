@@ -13,7 +13,7 @@ param (
     [string]$PrinterName = "Print to PNG",
     [string]$DriverName  = "Microsoft Print To PDF",
     [string]$PortName    = "$env:LOCALAPPDATA\Temp\print_to_png_spool.pdf",
-    [int]$DefaultDPI     = 1200,
+    [int]$DefaultDPI     = 300,
     [switch]$RegisterStartup
 )
 
