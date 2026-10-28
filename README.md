@@ -91,17 +91,6 @@
 
 ---
 
-## 如何自行打包 `install.exe`？
-
-本專案提供一鍵雙層封裝腳本 `build_installer.ps1`（使用 PyInstaller 將背景服務與安裝器打包為單一免安裝 Python 的 `install.exe`）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
-```
-編譯完成後會在專案根目錄產出單一獨立的 `install.exe`。
-
----
-
 ## 解除安裝
 
 執行以下 PowerShell 指令即可完整停止背景服務、移除 `Print to PNG` 虛擬印表機與開機啟動捷徑：
