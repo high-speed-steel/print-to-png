@@ -61,6 +61,10 @@ powershell -ExecutionPolicy Bypass -File .\uninstall_printer.ps1
 | File | Description |
 | :--- | :--- |
 | `pdf_to_png_daemon.pyw` | Background daemon and PDF-to-PNG renderer |
+| `print_to_png_config.py` | Configuration and save-directory management |
+| `print_to_png_filename.py` | Document-title and filename normalization |
+| `print_to_png_dialog.py` | Native Windows PNG save dialog |
+| `print_to_png_renderer.py` | Spool-file claiming and PDF rendering |
 | `install_printer.ps1` | Virtual printer and startup configuration |
 | `uninstall_printer.ps1` | Complete uninstallation script |
 | `install.py` | Installer source |

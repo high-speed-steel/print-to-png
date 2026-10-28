@@ -19,22 +19,26 @@ Core Workflow:
 
 import ctypes
 from ctypes import wintypes
-import json
 import logging
 import os
 import re
-import shutil
 import sys
 import threading
 import time
-import uuid
 import winreg
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import pypdfium2 as pdfium
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+
+from print_to_png_config import get_default_save_dir as config_get_default_save_dir
+from print_to_png_config import load_config as config_load
+from print_to_png_config import save_config as config_save
+from print_to_png_dialog import prompt_native_png_save_dialog as native_save_dialog
+from print_to_png_filename import sanitize_filename
+from print_to_png_renderer import claim_spool_pdf as renderer_claim_spool_pdf
+from print_to_png_renderer import render_pdf_to_target_png as renderer_render_pdf_to_target_png
 
 # ==============================================================================
 # Configuration & Constants
@@ -49,13 +53,6 @@ else:
 CONFIG_FILE = BASE_DIR / "config.json"
 LOG_FILE = BASE_DIR / "print_to_png.log"
 
-DEFAULT_CONFIG = {
-    "default_dpi": 300,
-    "last_save_dir": "",
-}
-SUPPORTED_DPI_OPTIONS = (150, 300, 600, 1200, 2400, 4800)
-MAX_PDFIUM_BITMAP_DIMENSION = 32767
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -64,27 +61,6 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("PrintToPNG")
-
-
-def load_config() -> Dict:
-    cfg = dict(DEFAULT_CONFIG)
-    if CONFIG_FILE.exists():
-        try:
-            loaded = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                cfg.update(loaded)
-        except Exception as exc:
-            logger.warning(f"讀取 config.json 失敗，使用預設值：{exc}")
-    else:
-        save_config(cfg)
-    return cfg
-
-
-def save_config(cfg: Dict) -> None:
-    try:
-        CONFIG_FILE.write_text(json.dumps(cfg, indent=4, ensure_ascii=False), encoding="utf-8")
-    except Exception as exc:
-        logger.warning(f"寫入 config.json 失敗：{exc}")
 
 
 # ==============================================================================
@@ -110,25 +86,6 @@ def init_win32_environment() -> int:
 # ==============================================================================
 # Default Save Directory Resolution
 # ==============================================================================
-def get_default_save_dir(cfg: Dict) -> str:
-    last_dir = cfg.get("last_save_dir", "")
-    if last_dir and Path(last_dir).exists():
-        return str(Path(last_dir).resolve())
-
-    try:
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-            val, _ = winreg.QueryValueEx(key, "{374DE290-123F-4565-9164-39C4925E467B}")
-            expanded = Path(os.path.expandvars(val))
-            if expanded.exists():
-                return str(expanded.resolve())
-    except Exception:
-        pass
-
-    desktop = Path(os.environ.get("USERPROFILE", "~")).expanduser() / "Desktop"
-    return str(desktop.resolve())
-
-
 # ==============================================================================
 # Print Job Original Filename Tracker (Win32 Spooler + Foreground Window)
 # ==============================================================================
@@ -518,20 +475,20 @@ class SpoolPortHandler(FileSystemEventHandler):
 
     def _process_print_job(self) -> None:
         try:
-            job_pdf = claim_spool_pdf(SPOOL_FILE_PATH)
+            job_pdf = renderer_claim_spool_pdf(SPOOL_FILE_PATH)
             if not job_pdf or not job_pdf.exists():
                 return
 
             doc_name = self.title_tracker.get_best_document_name()
-            cfg = load_config()
+            cfg = config_load(CONFIG_FILE, logger)
             default_dpi = int(cfg.get("default_dpi", 300))
-            initial_dir = get_default_save_dir(cfg)
+            initial_dir = config_get_default_save_dir(cfg)
 
             logger.info(
                 f"已攔截列印工作！正在彈出原生 PNG 另存新檔對話框 (預設檔名='{doc_name}.png', 預設 DPI={default_dpi})"
             )
 
-            chosen_path, chosen_dpi = prompt_native_png_save_dialog(
+            chosen_path, chosen_dpi = native_save_dialog(
                 default_filename=doc_name,
                 initial_dir=initial_dir,
                 default_dpi=default_dpi,
@@ -542,9 +499,9 @@ class SpoolPortHandler(FileSystemEventHandler):
                 return
 
             cfg["last_save_dir"] = str(chosen_path.parent.resolve())
-            save_config(cfg)
+            config_save(CONFIG_FILE, cfg, logger)
 
-            outputs = render_pdf_to_target_png(job_pdf, chosen_path, chosen_dpi)
+            outputs = renderer_render_pdf_to_target_png(job_pdf, chosen_path, chosen_dpi, logger)
             logger.info(f"直存 PNG 成功 ({chosen_dpi} DPI)：{[str(o) for o in outputs]}")
 
         except Exception as exc:
@@ -572,7 +529,7 @@ class SpoolPortHandler(FileSystemEventHandler):
 # ==============================================================================
 def main() -> None:
     _mutex = init_win32_environment()
-    cfg = load_config()
+    cfg = config_load(CONFIG_FILE, logger)
     logger.info("======================================================")
     logger.info(
         f"Print to PNG 原生直存服務已啟動 | 預設解析度：{cfg.get('default_dpi', 300)} DPI"
