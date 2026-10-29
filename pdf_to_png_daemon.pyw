@@ -14,7 +14,7 @@ Core Workflow:
    - File name: Pre-filled with `<OriginalDocumentName>.png`.
    - Save as type: Native dropdown supporting `150 DPI` through `4800 DPI`.
 4. Renders the document directly to the target path as high-quality PNG(s) using `pypdfium2`
-   (single page: `<name>.png`, multi-page: `<name>_p1.png`, `<name>_p2.png`), leaving no PDF behind.
+   (single page: `<name>.png`, multi-page: `<name>-p1.png`, `<name>-p2.png`), leaving no PDF behind.
 """
 
 import ctypes
@@ -439,7 +439,7 @@ def render_pdf_to_target_png(job_pdf: Path, target_png: Path, dpi: int) -> List[
             if num_pages == 1:
                 out_path = parent_dir / f"{stem}.png"
             else:
-                out_path = parent_dir / f"{stem}_p{page_index + 1}.png"
+                out_path = parent_dir / f"{stem}-p{page_index + 1}.png"
 
             pil_image.save(str(out_path), format="PNG", dpi=(dpi, dpi))
             output_files.append(out_path)
